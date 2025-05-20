@@ -5,27 +5,24 @@ from config import LOG_CHANNEL, API_ID, API_HASH, NEW_REQ_MODE
 from plugins.database import db
 
 LOG_TEXT = """<b>#NewUser
-    
+
 ID - <code>{}</code>
 
 Nᴀᴍᴇ - {}</b>
 """
 
-# /start command handler
 @Client.on_message(filters.command('start'))
 async def start_message(c, m):
-    if m.from_user is None:
-        return  # User info not available, do nothing
+    if not m.from_user:
+        return
 
-    # Add user to DB if not already there
     if not await db.is_user_exist(m.from_user.id):
         await db.add_user(m.from_user.id, m.from_user.first_name)
         await c.send_message(LOG_CHANNEL, LOG_TEXT.format(m.from_user.id, m.from_user.mention))
 
-    # Send welcome message with photo
     await m.reply_photo(
         "https://te.legra.ph/file/119729ea3cdce4fefb6a1.jpg",
-        caption=f"<b>Hello {m.from_user.mention} 👋\n\nI Am Join Request Acceptor Bot. I Can Accept All Old Pending Join Request.\n\nFor All Pending Join Request Use - /accept</b>",
+        caption=f"<b>Hello {m.from_user.mention} 👋\n\nI Am Join Request Acceptor Bot. I Can Accept All Old Pending Join Requests.\n\nTo Accept All Pending Join Requests, Use - /accept</b>",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton('💝JOIN BOT SUPPORT GROUP', url='https://t.me/colonel_support')],
             [
@@ -35,56 +32,68 @@ async def start_message(c, m):
         ])
     )
 
-# /accept command handler
+
 @Client.on_message(filters.command('accept') & filters.private)
 async def accept(client, message):
-    show = await message.reply("**Please Wait.....**")
+    if not message.from_user:
+        return
 
+    show = await message.reply("**Please wait...**")
     user_data = await db.get_session(message.from_user.id)
+
     if user_data is None:
-        await show.edit("**For Accepting Pending Requests, You Need To /login First.**")
+        await show.edit("**To accept pending requests, please /login first.**")
         return
 
     try:
         acc = Client("joinrequest", session_string=user_data, api_id=API_ID, api_hash=API_HASH)
         await acc.connect()
-    except:
-        return await show.edit("**Your Login Session Expired. Use /logout, Then /login Again.**")
+    except Exception:
+        return await show.edit("❌ **Login session expired. Use /logout and /login again.**")
 
     await show.edit(
-        "**Now Forward A Message From Your Channel Or Group.\n\nMake Sure The Logged-In Account Is Admin There With Full Rights.**"
+        "**Now, forward a message from your group or channel.**\n"
+        "__Make sure your logged-in account is an admin with full rights.__"
     )
 
-    vj = await client.listen(message.chat.id)
+    try:
+        vj = await client.listen(message.chat.id)
+    except asyncio.TimeoutError:
+        return await show.edit("❌ **Timeout. Please try forwarding again.**")
 
-    if vj.forward_from_chat and vj.forward_from_chat.type not in [enums.ChatType.PRIVATE, enums.ChatType.BOT]:
-        chat_id = vj.forward_from_chat.id
-        try:
-            await acc.get_chat(chat_id)
-        except:
-            await show.edit("**Error - Make Sure You're Admin In The Channel/Group With Rights.**")
-            return
-    else:
-        return await message.reply("**Message Was Not Forwarded From A Channel Or Group.**")
+    if not vj.forward_from_chat or vj.forward_from_chat.type in [enums.ChatType.PRIVATE, enums.ChatType.BOT]:
+        return await message.reply("❌ **Forwarded message must be from a group or channel.**")
+
+    chat_id = vj.forward_from_chat.id
+    try:
+        await acc.get_chat(chat_id)
+    except Exception:
+        return await show.edit("❌ **Unable to access chat. Make sure you're an admin.**")
 
     await vj.delete()
 
-    msg = await show.edit("**Accepting all join requests... Please wait until it's completed.**")
+    msg = await show.edit("⏳ **Accepting join requests... Please wait.**")
+    attempts = 0
+
     try:
-        while True:
+        while attempts < 30:  # Limit to avoid infinite loop
             await acc.approve_all_chat_join_requests(chat_id)
             await asyncio.sleep(1)
-            join_requests = [request async for request in acc.get_chat_join_requests(chat_id)]
+            join_requests = [req async for req in acc.get_chat_join_requests(chat_id)]
             if not join_requests:
                 break
-        await msg.edit("**Successfully accepted all join requests.**")
+            attempts += 1
+        await msg.edit("✅ **All join requests have been accepted.**")
     except Exception as e:
-        await msg.edit(f"**An error occurred:** `{str(e)}`")
+        await msg.edit(f"❌ **Error:** `{str(e)}`")
 
-# Auto-approve new join requests if NEW_REQ_MODE is enabled
+
 @Client.on_chat_join_request(filters.group | filters.channel)
 async def approve_new(client, m):
     if not NEW_REQ_MODE:
+        return
+
+    if not m.from_user:
         return
 
     try:
@@ -97,12 +106,11 @@ async def approve_new(client, m):
         try:
             await client.send_message(
                 m.from_user.id,
-                f"**Hello {m.from_user.mention}!\nWelcome To {m.chat.title}\n\n__Powered By : @said__**"
+                f"**Hello {m.from_user.mention}!\nWelcome to {m.chat.title}**\n\n__Powered By: @said__"
             )
         except:
             pass
-    except Exception as e:
-        print(str(e))
-        pass
 
+    except Exception as e:
+        print(f"Join approve error: {e}")
 
