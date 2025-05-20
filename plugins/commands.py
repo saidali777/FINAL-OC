@@ -13,7 +13,11 @@ Nᴀᴍᴇ - {}</b>
 
 @Client.on_message(filters.command('start'))
 async def start_message(c,m):
-    if m.from_user and not await db.is_user_exist(m.from_user.id):
+    if m.from_user is None:
+    return  # or handle it however you want
+
+if not await db.is_user_exist(m.from_user.id):
+    # your logic here
     ...
         await db.add_user(m.from_user.id, m.from_user.first_name)
         await c.send_message(LOG_CHANNEL, LOG_TEXT.format(m.from_user.id, m.from_user.mention))
