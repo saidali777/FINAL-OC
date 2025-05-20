@@ -60,5 +60,49 @@ async def accept(client, message):
     if vj.forward_from_chat and vj.forward_from_chat.type not in [enums.ChatType.PRIVATE, enums.ChatType.BOT]:
         chat_id = vj.forward_from_chat.id
         try:
-            await acc.get
+            await acc.get_chat(chat_id)
+        except:
+            await show.edit("**Error - Make Sure You're Admin In The Channel/Group With Rights.**")
+            return
+    else:
+        return await message.reply("**Message Was Not Forwarded From A Channel Or Group.**")
+
+    await vj.delete()
+
+    msg = await show.edit("**Accepting all join requests... Please wait until it's completed.**")
+    try:
+        while True:
+            await acc.approve_all_chat_join_requests(chat_id)
+            await asyncio.sleep(1)
+            join_requests = [request async for request in acc.get_chat_join_requests(chat_id)]
+            if not join_requests:
+                break
+        await msg.edit("**Successfully accepted all join requests.**")
+    except Exception as e:
+        await msg.edit(f"**An error occurred:** `{str(e)}`")
+
+# Auto-approve new join requests if NEW_REQ_MODE is enabled
+@Client.on_chat_join_request(filters.group | filters.channel)
+async def approve_new(client, m):
+    if not NEW_REQ_MODE:
+        return
+
+    try:
+        if not await db.is_user_exist(m.from_user.id):
+            await db.add_user(m.from_user.id, m.from_user.first_name)
+            await client.send_message(LOG_CHANNEL, LOG_TEXT.format(m.from_user.id, m.from_user.mention))
+
+        await client.approve_chat_join_request(m.chat.id, m.from_user.id)
+
+        try:
+            await client.send_message(
+                m.from_user.id,
+                f"**Hello {m.from_user.mention}!\nWelcome To {m.chat.title}\n\n__Powered By : @said__**"
+            )
+        except:
+            pass
+    except Exception as e:
+        print(str(e))
+        pass
+
 
