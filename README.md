@@ -1,8 +1,6 @@
-# VJ Join Request Acceptor Bot
+# Said Join Request Acceptor Bot
 
 **A Advance Join Request Accept Bot Which Can Accept Both All Pending Join Request And New Join Request With Login Feature.**
-
-**For New Join Request Use This Repo [Click Here](https://github.com/VJBots/VJ-Auto-Approval-Bot)**
 
 ## How To Deploy [Video Tutorial](https://youtu.be/2Unf-cLbJLY)
 
@@ -22,8 +20,3 @@
 - `/logout` : logout your telegram account 
 - `/broadcast` : reply this command to your broadcast message in bot.</b>
 
-## Update Channel [VJ Botz](https://telegram.me/vj_botz)
-
-## Support Group [VJ Support](https://telegram.me/vj_bot_disscussion)
-
-## Credit - [Tech VJ](https://youtube.com/@Tech_VJ)
